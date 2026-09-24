@@ -50,9 +50,11 @@ jobs:
         env:
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
-        run: >
-          xcrun notarytool store-credentials PassboltBar --keychain "$NOTARY_KEYCHAIN"
-          --apple-id "$NOTARY_APPLE_ID" --team-id NH4M8452G6 --password "$NOTARY_PASSWORD"
+        # Strip whitespace: a pasted secret easily picks up a stray space or newline.
+        run: |
+          xcrun notarytool store-credentials PassboltBar --keychain "$NOTARY_KEYCHAIN" \
+            --apple-id "$(printf %s "$NOTARY_APPLE_ID" | tr -d '[:space:]')" --team-id NH4M8452G6 \
+            --password "$(printf %s "$NOTARY_PASSWORD" | tr -d '[:space:]')"
 
       - name: Build, sign and notarize
         run: |
