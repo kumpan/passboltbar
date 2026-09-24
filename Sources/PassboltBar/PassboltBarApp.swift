@@ -157,6 +157,13 @@ let panelCornerRadius: CGFloat = 26
     frame.layer?.cornerRadius = panelCornerRadius
     frame.layer?.cornerCurve = .continuous
     frame.layer?.masksToBounds = true
+    // WindowServer draws the shadow from the window's own corner radius (0 here), not from the layer,
+    // so the clipped corners showed the desktop through a square shadow outline. Private, so guarded.
+    let setRadius = NSSelectorFromString("_setCornerRadius:")
+    if window.responds(to: setRadius), let imp = window.method(for: setRadius) {
+        typealias SetRadius = @convention(c) (NSWindow, Selector, CGFloat) -> Void
+        unsafeBitCast(imp, to: SetRadius.self)(window, setRadius, panelCornerRadius)
+    }
     window.invalidateShadow()
 }
 
