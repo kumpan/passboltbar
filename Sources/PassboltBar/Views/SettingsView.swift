@@ -12,6 +12,27 @@ struct SettingsView: View {
             ScreenHeader(title: "Settings")
             Form {
                 Section {
+                    LabeledContent("Version") {
+                        HStack {
+                            Text(updater.currentVersion).foregroundStyle(.secondary)
+                            Button("Check for Updates") { Task { await updater.check() } }
+                                .disabled(updater.isWorking)
+                        }
+                    }
+                    if let release = updater.available {
+                        LabeledContent("Version \(release.version) is available") {
+                            Button("Install and Relaunch") { Task { await updater.install() } }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(updater.isWorking)
+                        }
+                    }
+                } header: {
+                    Text("Updates")
+                } footer: {
+                    if let status = updater.status { Text(status).foregroundStyle(.secondary) }
+                }
+
+                Section {
                     TextField("CLI path", text: $cliPath, prompt: Text(PassboltCLI.detectedPath ?? "not found"))
                     LabeledContent("Status") {
                         let ok = FileManager.default.isExecutableFile(atPath: Settings.cliPath)
@@ -35,26 +56,6 @@ struct SettingsView: View {
                     credentialRow("TOTP secret", .totp)
                 }
                 .id(keychainVersion)
-
-                Section {
-                    LabeledContent("Version", value: updater.currentVersion)
-                    if let release = updater.available {
-                        LabeledContent("Version \(release.version) is available") {
-                            Button("Install and Relaunch") { Task { await updater.install() } }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(updater.isWorking)
-                        }
-                    } else {
-                        LabeledContent("Updates") {
-                            Button("Check for Updates") { Task { await updater.check() } }
-                                .disabled(updater.isWorking)
-                        }
-                    }
-                } header: {
-                    Text("Updates")
-                } footer: {
-                    if let status = updater.status { Text(status).foregroundStyle(.secondary) }
-                }
 
                 Section {
                     LabeledContent("Open PassboltBar") { Text("⌃⌥P").monospaced() }
