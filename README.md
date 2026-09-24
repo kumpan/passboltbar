@@ -67,7 +67,7 @@ Login** → **+** → choose PassboltBar.
 | **↑ / ↓** | Move the selection |
 | **↩** | Copy the password (cleared from the clipboard after 30 s) |
 | **⌘↩** | Copy the username |
-| **→** | Show every field: URLs, description, note and custom fields. **↩** copies the selected one, **space** shows or hides a password, **←** goes back |
+| **→** or double-click | Show every field: URLs, description, note and custom fields. **↩** copies the selected one, **space** shows or hides a password, **←** goes back. Values can also be selected with the mouse |
 
 - **+** adds a new password. The wand button generates a strong one.
 - **⚙︎** opens Settings: clipboard clear time, updates, and removing the saved passphrase or 2FA secret.
