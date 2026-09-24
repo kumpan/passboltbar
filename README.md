@@ -1,116 +1,129 @@
 # PassboltBar
 
-A macOS menu bar app for searching, copying and adding Passbolt passwords. It is a thin wrapper around the
-official [go-passbolt-cli](https://github.com/passbolt/go-passbolt-cli). The app itself does no crypto and
-makes no API calls.
+Your Passbolt passwords in the Mac menu bar. Press **⌃⌥P**, type a few letters, press **↩**, and the
+password is on your clipboard. The clipboard clears itself after 30 seconds.
 
-## 1. Install the CLI
+PassboltBar is a small front end for the official
+[Passbolt CLI](https://github.com/passbolt/go-passbolt-cli). It does no encryption and no network requests
+to Passbolt itself; the CLI does that.
+
+**Requires** macOS 14 or later, and a Passbolt account.
+
+---
+
+## Install
+
+### 1. Install the Passbolt CLI
+
+In Terminal (Homebrew required, see [brew.sh](https://brew.sh)):
 
 ```sh
 brew install passbolt/tap/go-passbolt-cli
 ```
 
-## 2. Configure the CLI
+### 2. Connect the CLI to your Passbolt account
 
-`passbolt configure` is not interactive; it saves the flags you give it. Don't pass `--userPassword`,
-because PassboltBar supplies the passphrase from the Keychain.
+1. In the Passbolt browser extension, click your avatar → **Manage account** → **Keys inspector**
+   → **Private key** to download your private key.
+2. Run this in Terminal, replacing the server address and file name with yours:
 
-```sh
-passbolt configure --serverAddress https://passbolt.example.com --userPrivateKeyFile ~/Downloads/passbolt_private.txt
-passbolt list resource -c name      # asks for your passphrase; should print your entries
-```
+   ```sh
+   passbolt configure --serverAddress https://passbolt.example.com --userPrivateKeyFile ~/Downloads/passbolt_private.txt
+   ```
 
-Download the private key from the browser extension: **Manage account → Keys inspector → Private key**.
-Delete the downloaded file once `list` works, because the key has been copied into
-`~/Library/Application Support/go-passbolt-cli/go-passbolt-cli.toml`.
+   The command prints nothing when it succeeds.
+3. Delete the downloaded key file. The CLI has made its own copy.
 
-## 3. Build
+### 3. Install the app
 
-```sh
-./build.sh                          # → dist/PassboltBar.app (Developer ID-signed if the cert is installed, else ad-hoc)
-./build.sh release                  # also notarizes + staples → dist/PassboltBar-<VERSION>.zip
-swift test                          # unit tests
-```
+1. Download **`PassboltBar-<version>.zip`** from the
+   **[latest release](https://github.com/kumpan/passboltbar/releases/latest)** (under **Assets**).
+2. Unzip it and drag **PassboltBar** into your **Applications** folder.
+3. Open it. A purple key appears in the menu bar. The app is signed and notarized by Apple, so it opens
+   without warnings.
 
-A release needs Kumpan's **Developer ID Application** certificate in the login keychain, and a notarytool
-profile named `PassboltBar`, created once with
-`xcrun notarytool store-credentials PassboltBar --apple-id <apple id> --team-id NH4M8452G6` and an
-app-specific password from account.apple.com.
+### 4. First launch
 
-### Automatic releases
+1. **Passphrase:** enter your Passbolt passphrase, the one you use to unlock the browser extension. It is
+   saved in your Mac's Keychain and unlocked with Touch ID.
+2. **Two-factor login (if your account uses it):** click **Scan with Camera** and allow camera access.
+   On your phone, in **Google Authenticator**, tap ☰ → **Transfer accounts** → **Export accounts**,
+   select **only Passbolt**, tap **Next**, and hold the QR code up to your Mac's camera. Your phone keeps
+   working as before. With another authenticator app, choose **Paste a setup key instead**.
+3. If macOS asks whether PassboltBar may use information in your Keychain, enter your Mac password and
+   click **Always Allow**.
 
-Every push to `main` runs `.github/workflows/release.yml`: tests, build, Developer ID signing, notarization,
-and a GitHub release `v<VERSION>.<run number>` with the zip attached. Edit `VERSION` to bump the
-major/minor version. The workflow's header lists the four repository secrets it needs.
+**Start at login (recommended):** System Settings → General → Login Items & Extensions → **Open at
+Login** → **+** → choose PassboltBar.
 
-## Installing (for colleagues)
+---
 
-1. Install and configure the CLI (steps 1–2 above).
-2. Download the latest release. The repo is private, so you need to be signed in to GitHub as a member of
-   the kumpan organization.
-   - In the browser: **[github.com/kumpan/passboltbar/releases/latest](https://github.com/kumpan/passboltbar/releases/latest)**
-     → download `PassboltBar-<version>.zip` under **Assets**.
-   - Or in Terminal: `gh release download -R kumpan/passboltbar -p 'PassboltBar-*.zip' -D ~/Downloads`
-3. Unzip it, move `PassboltBar.app` to **Applications** and open it. It is notarized, so there are no
-   Gatekeeper warnings.
-4. Enter your passphrase, and scan your authenticator QR code if your account uses TOTP.
-
-To update, download the latest release and replace the app in Applications. Your Keychain entries stay.
-
-## 4. First run
-
-1. Open `dist/PassboltBar.app` (or copy it to `/Applications` first). A key icon appears in the menu bar.
-2. Enter your private-key passphrase. It is stored in the login Keychain (service `PassboltBar`).
-   Reading it requires Touch ID or your Mac password, and one approval covers the next 5 minutes.
-3. Ad-hoc builds only: after each rebuild macOS asks whether PassboltBar may use the Keychain item,
-   because an ad-hoc signature changes with every build. Choose **Always Allow**. Developer ID builds keep
-   their Keychain access across updates.
-
-**Usage**
+## Using it
 
 | Key | Action |
 |---|---|
-| ⌃⌥P | Open or close the menu from anywhere |
-| ↑ / ↓ | Move the selection |
-| ↩ | Copy the password (concealed, cleared after 30 s if still on the clipboard) |
-| ⌘↩ | Copy the username |
+| **⌃⌥P** | Open or close PassboltBar from anywhere |
+| Type | Search by name, username or website |
+| **↑ / ↓** | Move the selection |
+| **↩** | Copy the password (cleared from the clipboard after 30 s) |
+| **⌘↩** | Copy the username |
 
-The **+** button adds a password (the wand icon generates one), and the gear icon opens Settings: CLI
-path, clipboard clear time, and forgetting the stored passphrase or TOTP secret.
+- **+** adds a new password. The wand button generates a strong one.
+- **⚙︎** opens Settings: clipboard clear time, updates, and removing the saved passphrase or 2FA secret.
+- Touch ID is asked for at most every 5 minutes.
 
-## 5. Start at login
+## Updates
 
-System Settings → General → Login Items & Extensions → **Open at Login** → **+** → pick `PassboltBar.app`.
-Copy it to `/Applications` first so the path stays the same across rebuilds.
+PassboltBar checks for new versions once a day. When one is available, **Update x.y.z** appears at
+the bottom of the window. Click it, then **Install and Relaunch**. You can also go to Settings →
+**Check for Updates**. Updates are only installed if they are signed by Kumpan and notarized by Apple.
 
-## MFA (TOTP)
+## Troubleshooting
 
-The CLI logs in fresh on every call, so each call needs a TOTP code. When your account uses TOTP,
-PassboltBar asks once for your **TOTP secret** (the base32 key, or the `otpauth://` link in the QR code).
-It stores the secret in the Keychain next to the passphrase, behind the same Touch ID prompt, and passes
-it to the CLI as `MFAMODE=noninteractive-totp` and `MFATOTPTOKEN` environment variables. Nothing is
-written to the CLI config.
+| Problem | Fix |
+|---|---|
+| "passbolt CLI not found" | Install the CLI (step 1). If it lives somewhere unusual, set its path in Settings. |
+| "Wrong passphrase" | Enter it again. It's the passphrase for the browser extension, not your Mac password. |
+| Two-factor login failed | Settings → **Forget TOTP secret**, then scan the QR code again. |
+| The camera shows nothing | System Settings → Privacy & Security → Camera → turn on PassboltBar. |
+| Repeated Keychain password prompts | Click **Always Allow** rather than **Allow**. If they continue: Settings → Forget passphrase and TOTP secret, then set them up again. |
+| ⌃⌥P does nothing | Click the menu bar icon instead, and tell us your macOS version. |
 
-Trade-off: this Mac plus Touch ID then covers both factors.
+## Privacy and security
 
-With **Google Authenticator** this takes one scan, and your 2FA setup is left unchanged:
-1. In PassboltBar, click **Scan with Camera**. The first time, allow camera access.
-2. On your phone, tap ☰ → **Transfer accounts** → **Export accounts**, select **only** Passbolt → **Next**.
-3. Hold the QR code up to the Mac's camera. PassboltBar reads it, keeps only the Passbolt secret and
-   stops the camera.
+- Your passphrase and 2FA secret stay in your Mac's Keychain, and reading them requires Touch ID. They are
+  never written to disk or shown on the command line.
+- Passwords are fetched only when you copy them, and are never stored. Copied passwords are hidden from
+  clipboard-history apps and cleared after 30 seconds.
+- Trade-off: storing the 2FA secret on your Mac means this Mac plus Touch ID covers both login factors.
 
-PassboltBar also accepts a plain base32 setup key or an `otpauth://` link from other authenticator apps.
+---
 
-## Security notes
+<details>
+<summary><b>For developers</b></summary>
 
-- The passphrase and TOTP secret are passed to the CLI only through the child process environment
-  (`USERPASSWORD`, `MFATOTPTOKEN`), never on the command line.
-- Passwords are fetched on demand and never cached or written to disk. Clipboard entries are marked
-  `org.nspasteboard.ConcealedType` and `TransientType`, so clipboard managers skip them.
-- The CLI has no stdin option for the password of a new resource. `create` passes it as `--password`, so
-  it is visible in `ps` for the second or two the process runs.
-- Swift strings can't be reliably wiped from memory. The app releases secrets as soon as they are used
-  and zeroes the raw buffers it controls.
-- The ⌃⌥P hotkey uses private AppKit API to open the menu, because on macOS 27 SwiftUI's `MenuBarExtra`
-  can't be opened programmatically. If a macOS update breaks this, the hotkey stops working (it won't
-  crash the app); clicking the icon still works.
+```sh
+swift test                  # unit tests
+./build.sh                  # → dist/PassboltBar.app (Developer ID-signed if the cert is installed, else ad-hoc)
+./build.sh release          # also notarizes + staples → dist/PassboltBar-<VERSION>.zip
+swift scripts/make-icon.swift preview out.png   # icon variants; `… make-icon.swift 3` writes Resources/AppIcon.icns
+```
+
+- **Releases:** every push to `main` that isn't docs-only runs `.github/workflows/release.yml`: tests,
+  build, Developer ID signing, notarization, and a GitHub release `v<VERSION>.<run number>`. Edit
+  `VERSION` to bump the major/minor version. The workflow header lists the four secrets it needs.
+- **Local releases** need Kumpan's *Developer ID Application* certificate in the login keychain and a
+  notarytool profile:
+  `xcrun notarytool store-credentials PassboltBar --apple-id <apple id> --team-id NH4M8452G6`.
+- **Implementation notes:**
+  - The passphrase and TOTP secret reach the CLI only via the child environment (`USERPASSWORD`,
+    `MFAMODE=noninteractive-totp`, `MFATOTPTOKEN`). The CLI's stdin is `/dev/null`, so prompts fail fast
+    instead of hanging.
+  - `create` passes the new password as `--password`, because the CLI can't read it from stdin. It is
+    briefly visible in `ps`.
+  - ⌃⌥P uses private AppKit API to open `MenuBarExtra` on macOS 27, where the button has no action.
+    If that API goes away, the hotkey becomes a no-op; clicking the icon still works.
+  - The updater verifies the code signature requirement (team `NH4M8452G6`, id `se.kumpan.passboltbar`)
+    and `spctl` notarization before swapping the bundle.
+
+</details>

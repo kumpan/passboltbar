@@ -69,6 +69,7 @@ extension View {
 /// Error banner + status line at the bottom of every screen.
 struct StatusBar: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var updater: Updater
 
     var body: some View {
         VStack(spacing: 0) {
@@ -101,7 +102,15 @@ struct StatusBar: View {
                     Text(state.resources.isEmpty ? "" : "\(state.resources.count) items")
                 }
                 Spacer()
-                Text("⌃⌥P").monospaced()
+                if let release = updater.available {
+                    Button { state.mode = .settings } label: {
+                        Label("Update \(release.version)", systemImage: "arrow.down.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
+                } else {
+                    Text("⌃⌥P").monospaced()
+                }
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)

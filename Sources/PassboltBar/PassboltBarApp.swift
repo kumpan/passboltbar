@@ -7,7 +7,7 @@ struct PassboltBarApp: App {
 
     var body: some Scene {
         MenuBarExtra("PassboltBar", systemImage: "key.fill") {
-            RootView().environmentObject(state)
+            RootView().environmentObject(state).environmentObject(Updater.shared)
         }
         .menuBarExtraStyle(.window)
     }
@@ -16,6 +16,7 @@ struct PassboltBarApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         HotKey.register { HotKey.toggleMenuBarExtra() }
+        Task { @MainActor in Updater.shared.startAutomaticChecks() }
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var updater: Updater
     @AppStorage(Settings.cliPathKey) private var cliPath = ""
     @AppStorage(Settings.clearSecondsKey) private var clearSeconds = 30
     @State private var keychainVersion = 0 // bumps to re-read Keychain status after Forget
@@ -34,6 +35,26 @@ struct SettingsView: View {
                     credentialRow("TOTP secret", .totp)
                 }
                 .id(keychainVersion)
+
+                Section {
+                    LabeledContent("Version", value: updater.currentVersion)
+                    if let release = updater.available {
+                        LabeledContent("Version \(release.version) is available") {
+                            Button("Install and Relaunch") { Task { await updater.install() } }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(updater.isWorking)
+                        }
+                    } else {
+                        LabeledContent("Updates") {
+                            Button("Check for Updates") { Task { await updater.check() } }
+                                .disabled(updater.isWorking)
+                        }
+                    }
+                } header: {
+                    Text("Updates")
+                } footer: {
+                    if let status = updater.status { Text(status).foregroundStyle(.secondary) }
+                }
 
                 Section {
                     LabeledContent("Open PassboltBar") { Text("⌃⌥P").monospaced() }

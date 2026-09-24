@@ -123,6 +123,16 @@ final class CredentialTests: XCTestCase {
     }
 }
 
+final class UpdaterTests: XCTestCase {
+    func testVersionComparison() {
+        XCTAssertTrue(Updater.isVersion("1.0.10", newerThan: "1.0.9"))
+        XCTAssertTrue(Updater.isVersion("1.1", newerThan: "1.0.99"))
+        XCTAssertFalse(Updater.isVersion("1.0.5", newerThan: "1.0.5"))
+        XCTAssertFalse(Updater.isVersion("1.0", newerThan: "1.0.0"))
+        XCTAssertFalse(Updater.isVersion("1.0.4", newerThan: "1.0.5"))
+    }
+}
+
 final class PasswordGeneratorTests: XCTestCase {
     func testLengthAndClasses() {
         for _ in 0..<200 {
