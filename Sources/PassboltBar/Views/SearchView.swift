@@ -113,7 +113,6 @@ struct SearchView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(Array(results.enumerated()), id: \.element.id) { index, r in
                         ResourceRow(resource: r, selected: index == selection) { showDetails(r) }
-                            .id(index)
                             .onTapGesture {
                                 selection = index
                                 if NSApp.currentEvent?.clickCount == 2 { showDetails(r) }
@@ -123,7 +122,9 @@ struct SearchView: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
             }
-            .onChange(of: selection) { proxy.scrollTo(selection) }
+            // Scroll by resource id: an .id(index) on the rows made the lazy stack keep showing
+            // the old rows when the results changed.
+            .onChange(of: selection) { if results.indices.contains(selection) { proxy.scrollTo(results[selection].id) } }
         }
     }
 
