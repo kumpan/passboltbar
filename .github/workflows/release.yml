@@ -1,0 +1,72 @@
+# Every push to main: test, build, sign with Kumpan's Developer ID, notarize, publish a GitHub release.
+# Version = <VERSION file>.<run number>, e.g. 1.0.7. Bump VERSION for a new minor/major.
+#
+# Repository secrets:
+#   DEVELOPER_ID_P12           base64 of the exported "Developer ID Application" .p12 (cert + private key)
+#   DEVELOPER_ID_P12_PASSWORD  password chosen when exporting the .p12
+#   NOTARY_APPLE_ID            Apple ID in the Kumpan team
+#   NOTARY_PASSWORD            app-specific password for that Apple ID
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test
+
+      - name: Import signing certificate
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "NOTARY_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Store notarization credentials
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: >
+          xcrun notarytool store-credentials PassboltBar --keychain "$NOTARY_KEYCHAIN"
+          --apple-id "$NOTARY_APPLE_ID" --team-id NH4M8452G6 --password "$NOTARY_PASSWORD"
+
+      - name: Build, sign and notarize
+        run: |
+          VERSION="$(cat VERSION).${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          VERSION="$VERSION" BUILD_NUMBER="${{ github.run_number }}" ./build.sh release
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "v$VERSION" "dist/PassboltBar-$VERSION.zip"
+          --title "PassboltBar $VERSION" --target "$GITHUB_SHA" --generate-notes
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$NOTARY_KEYCHAIN" 2>/dev/null || true
