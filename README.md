@@ -46,9 +46,16 @@ major/minor version. The workflow's header lists the four repository secrets it 
 ## Installing (for colleagues)
 
 1. Install and configure the CLI (steps 1–2 above).
-2. Unzip `PassboltBar-x.y.zip`, move `PassboltBar.app` to **Applications** and open it. It is notarized, so
-   there are no Gatekeeper warnings.
-3. Enter your passphrase, and scan your authenticator QR code if your account uses TOTP.
+2. Download the latest release. The repo is private, so you need to be signed in to GitHub as a member of
+   the kumpan organization.
+   - In the browser: **[github.com/kumpan/passboltbar/releases/latest](https://github.com/kumpan/passboltbar/releases/latest)**
+     → download `PassboltBar-<version>.zip` under **Assets**.
+   - Or in Terminal: `gh release download -R kumpan/passboltbar -p 'PassboltBar-*.zip' -D ~/Downloads`
+3. Unzip it, move `PassboltBar.app` to **Applications** and open it. It is notarized, so there are no
+   Gatekeeper warnings.
+4. Enter your passphrase, and scan your authenticator QR code if your account uses TOTP.
+
+To update, download the latest release and replace the app in Applications. Your Keychain entries stay.
 
 ## 4. First run
 
