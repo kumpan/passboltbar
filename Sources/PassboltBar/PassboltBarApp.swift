@@ -63,6 +63,16 @@ final class AppState: ObservableObject {
         flash("Copied – clears in \(seconds)s")
     }
 
+    func details(_ r: Resource) async -> [ResourceField]? {
+        await withCredentials { try await self.cli.details(id: r.id, creds: $0) }
+    }
+
+    func copy(_ f: ResourceField) {
+        let seconds = Settings.clearSeconds
+        Clipboard.copy(f.value, secret: f.secret, clearAfter: seconds)
+        flash(f.secret ? "Copied – clears in \(seconds)s" : "\(f.label) copied")
+    }
+
     func copyUsername(_ r: Resource) {
         guard let u = r.username, !u.isEmpty else { return flash("No username") }
         Clipboard.copy(u, secret: false, clearAfter: 0)

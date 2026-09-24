@@ -47,7 +47,58 @@ private let getJSON = """
 }
 """
 
+// v5 item with two URLs, a secret note and custom fields (label in metadata, value in secret).
+private let getV5JSON = """
+{
+  "name": "AWS",
+  "username": "root",
+  "uri": "https://aws.amazon.com",
+  "password": "hunter2",
+  "description": "prod",
+  "metadata": {
+    "name": "AWS",
+    "uris": ["https://aws.amazon.com", "https://console.aws.amazon.com"],
+    "description": "prod",
+    "custom_fields": [
+      {"id": "11111111-1111-4111-8111-111111111111", "type": "text", "metadata_key": "Account ID"},
+      {"id": "22222222-2222-4222-8222-222222222222", "type": "password", "metadata_key": "API secret"},
+      {"id": "33333333-3333-4333-8333-333333333333", "type": "number", "metadata_key": "Port"},
+      {"id": "44444444-4444-4444-8444-444444444444", "type": "boolean", "metadata_key": "MFA"},
+      {"id": "55555555-5555-4555-8555-555555555555", "type": "text", "metadata_key": "Empty"}
+    ]
+  },
+  "secret": {
+    "password": "hunter2",
+    "description": "rotate yearly",
+    "custom_fields": [
+      {"id": "11111111-1111-4111-8111-111111111111", "type": "text", "secret_value": "1234-5678"},
+      {"id": "22222222-2222-4222-8222-222222222222", "type": "password", "secret_value": "AKIA-x"},
+      {"id": "33333333-3333-4333-8333-333333333333", "type": "number", "secret_value": 8443},
+      {"id": "44444444-4444-4444-8444-444444444444", "type": "boolean", "secret_value": true},
+      {"id": "55555555-5555-4555-8555-555555555555", "type": "text", "secret_value": null}
+    ]
+  },
+  "deleted": false,
+  "expired": false
+}
+"""
+
 final class ParsingTests: XCTestCase {
+    func testDecodeDetailsV5() throws {
+        let fields = try PassboltCLI.decodeDetails(Data(getV5JSON.utf8))
+        XCTAssertEqual(fields.map(\.label), ["Username", "Password", "URL", "URL", "Description", "Note",
+                                             "Account ID", "API secret", "Port", "MFA"])
+        XCTAssertEqual(fields.map(\.value), ["root", "hunter2", "https://aws.amazon.com", "https://console.aws.amazon.com",
+                                             "prod", "rotate yearly", "1234-5678", "AKIA-x", "8443", "true"])
+        XCTAssertEqual(fields.filter(\.secret).map(\.label), ["Password", "API secret"])
+    }
+
+    func testDecodeDetailsV4() throws {
+        // No `uris` in the metadata, and the description isn't repeated as a note.
+        let fields = try PassboltCLI.decodeDetails(Data(getJSON.utf8))
+        XCTAssertEqual(fields.map(\.label), ["Username", "Password", "URL", "Description"])
+    }
+
     func testDecodeList() throws {
         let list = try PassboltCLI.decodeList(Data(listJSON.utf8))
         XCTAssertEqual(list.count, 3)
