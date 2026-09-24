@@ -114,7 +114,10 @@ struct SearchView: View {
                     ForEach(Array(results.enumerated()), id: \.element.id) { index, r in
                         ResourceRow(resource: r, selected: index == selection) { showDetails(r) }
                             .id(index)
-                            .onTapGesture { selection = index }
+                            .onTapGesture {
+                                selection = index
+                                if NSApp.currentEvent?.clickCount == 2 { showDetails(r) }
+                            }
                     }
                 }
                 .padding(.horizontal, 8)

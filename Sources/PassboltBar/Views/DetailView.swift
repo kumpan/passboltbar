@@ -21,7 +21,8 @@ struct DetailView: View {
                                 revealed.formSymmetricDifference([index])
                             }
                                 .id(index)
-                                .onTapGesture { selection = index }
+                                // Simultaneous, so it doesn't swallow the clicks that select text.
+                                .simultaneousGesture(TapGesture().onEnded { selection = index })
                         }
                     }
                     .padding(.horizontal, 8)
@@ -66,6 +67,7 @@ struct FieldRow: View {
                     Text("••••••••").font(.system(size: 13))
                 } else {
                     Text(field.value).font(.system(size: 13)).monospaced(field.secret).lineLimit(3)
+                        .textSelection(.enabled)
                 }
             }
             Spacer(minLength: 4)
