@@ -7,6 +7,13 @@ struct Resource: Codable, Identifiable, Hashable {
     var uri: String?
 }
 
+/// One copyable line in the details view. `secret` values are masked and copied as concealed.
+struct ResourceField: Hashable {
+    let label: String
+    let value: String
+    var secret = false
+}
+
 struct Credentials {
     let passphrase: String
     var totpSecret: String?
@@ -43,6 +50,12 @@ struct PassboltCLI {
         return try Self.decodePassword(data)
     }
 
+    func details(id: String, creds: Credentials) async throws -> [ResourceField] {
+        var data = try await run(["get", "resource", "--id", id, "-j"], creds: creds)
+        defer { data.resetBytes(in: 0..<data.count) }
+        return try Self.decodeDetails(data)
+    }
+
     func create(name: String, username: String, password: String, uri: String, description: String,
                 creds: Credentials) async throws -> String {
         var args = ["create", "resource", "--name", name, "-j"]
@@ -63,6 +76,54 @@ struct PassboltCLI {
     static func decodePassword(_ data: Data) throws -> String {
         struct Secret: Decodable { let password: String? }
         return try JSONDecoder().decode(Secret.self, from: data).password ?? ""
+    }
+
+    /// Every field worth showing, in Passbolt's order. v5 custom fields keep their label in the
+    /// metadata and their value in the secret, matched by id.
+    static func decodeDetails(_ data: Data) throws -> [ResourceField] {
+        struct Scalar: Decodable {
+            let text: String
+            init(from decoder: Decoder) throws {
+                let c = try decoder.singleValueContainer()
+                if let s = try? c.decode(String.self) { text = s }
+                else if let b = try? c.decode(Bool.self) { text = String(b) }
+                else if let i = try? c.decode(Int.self) { text = String(i) }
+                else { text = String(try c.decode(Double.self)) }
+            }
+        }
+        struct Custom: Decodable {
+            let id: String
+            var type, metadata_key, secret_key: String?
+            var metadata_value, secret_value: Scalar?
+        }
+        struct Blob: Decodable {
+            var uris: [String?]?
+            var description: String?
+            var custom_fields: [Custom]?
+        }
+        struct Get: Decodable {
+            var username, uri, password, description: String?
+            var metadata, secret: Blob?
+        }
+        let r = try JSONDecoder().decode(Get.self, from: data)
+
+        var out: [ResourceField] = []
+        func add(_ label: String, _ value: String?, secret: Bool = false) {
+            if let value, !value.isEmpty { out.append(ResourceField(label: label, value: value, secret: secret)) }
+        }
+        add("Username", r.username)
+        add("Password", r.password, secret: true)
+        for uri in r.metadata?.uris ?? [r.uri] { add("URL", uri) }
+        // The CLI fills `description` from the secret when the metadata has none; don't show it twice.
+        add("Description", r.description)
+        if r.secret?.description != r.description { add("Note", r.secret?.description) }
+        let values = Dictionary((r.secret?.custom_fields ?? []).map { ($0.id, $0) }) { first, _ in first }
+        for f in r.metadata?.custom_fields ?? [] {
+            let s = values[f.id]
+            add(f.metadata_key ?? s?.secret_key ?? "Custom field", (s?.secret_value ?? f.metadata_value)?.text,
+                secret: (f.type ?? s?.type) == "password")
+        }
+        return out
     }
 
     /// Runs the CLI off the main thread. Secrets go only into the child's environment (read by the

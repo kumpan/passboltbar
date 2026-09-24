@@ -33,6 +33,7 @@ struct SearchView: View {
     @State private var query = ""
     @State private var selection = 0
     @State private var monitor: Any?
+    @State private var detail: (resource: Resource, fields: [ResourceField])?
     @FocusState private var searchFocused: Bool
 
     private var results: [Resource] { filterResources(state.resources, query: query) }
@@ -42,6 +43,8 @@ struct SearchView: View {
             header
             if let item = state.prompt {
                 SecretPrompt(item: item).id(item)
+            } else if let detail {
+                DetailView(resource: detail.resource, fields: detail.fields) { self.detail = nil }
             } else if state.isBusy && state.resources.isEmpty {
                 ProgressView("Loading passwords…").controlSize(.small).frame(maxHeight: .infinity)
             } else if results.isEmpty {
@@ -58,7 +61,7 @@ struct SearchView: View {
                 resultList
             }
         }
-        .onChange(of: query) { selection = 0 }
+        .onChange(of: query) { selection = 0; detail = nil }
         .onAppear {
             searchFocused = state.prompt == nil
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: handleKey)
@@ -70,6 +73,8 @@ struct SearchView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             if state.prompt == nil { searchFocused = true }
         }
+        // Decrypted details don't outlive the panel.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in detail = nil }
     }
 
     private var header: some View {
@@ -107,7 +112,7 @@ struct SearchView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(Array(results.enumerated()), id: \.element.id) { index, r in
-                        ResourceRow(resource: r, selected: index == selection)
+                        ResourceRow(resource: r, selected: index == selection) { showDetails(r) }
                             .id(index)
                             .onTapGesture { selection = index }
                     }
@@ -119,12 +124,25 @@ struct SearchView: View {
         }
     }
 
+    private func showDetails(_ r: Resource) {
+        Task { if let fields = await state.details(r) { detail = (r, fields) } }
+    }
+
+    /// → opens details only when it wouldn't move the search field's cursor.
+    private func cursorAtEnd(_ event: NSEvent) -> Bool {
+        guard let editor = event.window?.firstResponder as? NSTextView else { return true }
+        return editor.selectedRange() == NSRange(location: (editor.string as NSString).length, length: 0)
+    }
+
     private func handleKey(_ event: NSEvent) -> NSEvent? {
-        if state.prompt != nil { return event }
+        if state.prompt != nil || detail != nil { return event }
         let list = results
         switch event.keyCode {
         case 125: selection = min(selection + 1, max(list.count - 1, 0))  // down
         case 126: selection = max(selection - 1, 0)                        // up
+        case 124 where cursorAtEnd(event):                                  // right
+            guard list.indices.contains(selection) else { return event }
+            showDetails(list[selection])
         case 36, 76:                                                        // return, enter
             guard list.indices.contains(selection) else { return nil }
             let r = list[selection]
@@ -140,6 +158,7 @@ struct ResourceRow: View {
     @EnvironmentObject var state: AppState
     let resource: Resource
     let selected: Bool
+    let showDetails: () -> Void
     @State private var hovering = false
 
     private var subtitle: String {
@@ -160,17 +179,11 @@ struct ResourceRow: View {
                 HStack(spacing: 0) {
                     IconButton(systemName: "person", help: "Copy username (⌘↩)") { state.copyUsername(resource) }
                     IconButton(systemName: "key", help: "Copy password (↩)") { Task { await state.copyPassword(resource) } }
+                    IconButton(systemName: "info.circle", help: "All fields (→)", action: showDetails)
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(selected ? Color.accentColor.opacity(0.22) : Color.primary.opacity(hovering ? 0.05 : 0))
-        )
-        .contentShape(Rectangle())
-        .onHover { hovering = $0 }
+        .rowStyle(selected: selected, hovering: $hovering)
     }
 }
 

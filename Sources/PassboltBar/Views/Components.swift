@@ -26,11 +26,12 @@ struct IconButton: View {
 struct ScreenHeader: View {
     @EnvironmentObject var state: AppState
     let title: String
+    var back: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 6) {
-            IconButton(systemName: "chevron.left", help: "Back") { state.mode = .search }
-            Text(title).font(.system(size: 15, weight: .semibold))
+            IconButton(systemName: "chevron.left", help: "Back") { if let back { back() } else { state.mode = .search } }
+            Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1)
             Spacer()
         }
         .padding(.horizontal, 10)
@@ -56,6 +57,18 @@ struct Monogram: View {
 }
 
 extension View {
+    /// Padding, selection/hover highlight and hit area shared by list rows.
+    func rowStyle(selected: Bool, hovering: Binding<Bool>) -> some View {
+        padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(selected ? Color.accentColor.opacity(0.22) : Color.primary.opacity(hovering.wrappedValue ? 0.05 : 0))
+            )
+            .contentShape(Rectangle())
+            .onHover { hovering.wrappedValue = $0 }
+    }
+
     /// Liquid Glass on macOS 26+, a subtle fill before that.
     @ViewBuilder func glassBackground(cornerRadius: CGFloat = 12) -> some View {
         if #available(macOS 26, *) {
