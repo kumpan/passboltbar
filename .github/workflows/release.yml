@@ -11,6 +11,10 @@ name: Release
 on:
   push:
     branches: [main]
+    paths-ignore: # docs-only changes don't need a new release
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
   workflow_dispatch:
 
 permissions:
