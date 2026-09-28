@@ -17,6 +17,9 @@ enum KeychainStore {
          kSecAttrAccount as String: item.rawValue]
     }
 
+    /// True while the last approval still covers reads, so `read` won't prompt.
+    static var isUnlocked: Bool { authenticatedAt.map { Date().timeIntervalSince($0) <= reuse } ?? false }
+
     static func has(_ item: Item) -> Bool {
         var q = query(item)
         q[kSecReturnAttributes as String] = true
@@ -37,7 +40,7 @@ enum KeychainStore {
     /// Returns nil if nothing is stored. Throws if authentication is cancelled or fails.
     static func read(_ item: Item) async throws -> String? {
         guard has(item) else { return nil }
-        if authenticatedAt.map({ Date().timeIntervalSince($0) > reuse }) ?? true {
+        if !isUnlocked {
             try await LAContext().evaluatePolicy(.deviceOwnerAuthentication,
                                                  localizedReason: "unlock your Passbolt credentials")
             authenticatedAt = Date()

@@ -47,9 +47,10 @@ final class AppState: ObservableObject {
 
     private var cli: PassboltCLI { PassboltCLI(path: Settings.cliPath) }
 
-    /// Loads the list if forced or the cache is older than 5 minutes.
+    /// Loads the list if forced, or if it's older than 5 minutes and that won't ask for Touch ID:
+    /// the loaded list is already on screen, so prompting just to refresh it protects nothing.
     func refresh(force: Bool = false) async {
-        if !force, let loadedAt, Date().timeIntervalSince(loadedAt) < 300 { return }
+        if !force, let loadedAt, Date().timeIntervalSince(loadedAt) < 300 || !KeychainStore.isUnlocked { return }
         if let list = await withCredentials({ try await self.cli.list(creds: $0) }) {
             resources = list.sorted { ($0.name ?? "").localizedCaseInsensitiveCompare($1.name ?? "") == .orderedAscending }
             loadedAt = Date()

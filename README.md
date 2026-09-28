@@ -71,7 +71,8 @@ Login** → **+** → choose PassboltBar.
 
 - **+** adds a new password. The wand button generates a strong one.
 - **⚙︎** opens Settings: clipboard clear time, updates, and removing the saved passphrase or 2FA secret.
-- Touch ID is asked for at most every 5 minutes.
+- Touch ID is asked for at most every 5 minutes, and only when a password is needed. Opening the menu shows
+  the list you last loaded; **↻** reloads it.
 
 ## Updates
 
