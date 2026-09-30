@@ -34,7 +34,8 @@ enum Settings {
 
 @MainActor
 final class AppState: ObservableObject {
-    enum Mode { case search, add, settings }
+    /// `edit` carries the item's non-secret standard fields, to fill the form.
+    enum Mode { case search, add, settings, edit(Resource, [ResourceField]) }
 
     @Published var mode = Mode.search
     @Published var resources: [Resource] = []
@@ -87,6 +88,19 @@ final class AppState: ObservableObject {
         }
         guard id != nil else { return false }
         flash("Created “\(name)”")
+        mode = .search
+        await refresh(force: true)
+        return true
+    }
+
+    func update(_ r: Resource, name: String?, username: String?, password: String?, uris: [String]?,
+                description: String?) async -> Bool {
+        let done: Void? = await withCredentials {
+            try await self.cli.update(id: r.id, name: name, username: username, password: password, uris: uris,
+                                      description: description, creds: $0)
+        }
+        guard done != nil else { return false }
+        flash("Saved “\(name ?? r.name ?? "")”")
         mode = .search
         await refresh(force: true)
         return true
@@ -176,6 +190,7 @@ struct RootView: View {
             switch state.mode {
             case .search: SearchView()
             case .add: AddView()
+            case .edit(let r, let fields): AddView(editing: r, fields: fields)
             case .settings: SettingsView()
             }
             StatusBar()

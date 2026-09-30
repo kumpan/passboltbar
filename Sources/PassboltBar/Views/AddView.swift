@@ -1,19 +1,35 @@
 import SwiftUI
 
+/// New item, or edits `editing`. Editing sends only the fields that changed; an empty password keeps the old one.
 struct AddView: View {
     @EnvironmentObject var state: AppState
-    @State private var name = ""
-    @State private var username = ""
+    private let editing: Resource?
+    private let original: (username: String, uris: [String], description: String)
+    @State private var name: String
+    @State private var username: String
     @State private var password = ""
-    @State private var uri = ""
-    @State private var description = ""
+    @State private var uri: String
+    @State private var description: String
     @State private var showPassword = false
 
+    init(editing: Resource? = nil, fields: [ResourceField] = []) {
+        func values(_ label: String) -> [String] { fields.filter { !$0.custom && $0.label == label }.map(\.value) }
+        let original = (username: values("Username").first ?? "", uris: values("URL"),
+                        description: values("Description").first ?? "")
+        self.editing = editing
+        self.original = original
+        _name = State(initialValue: editing?.name ?? "")
+        _username = State(initialValue: original.username)
+        _uri = State(initialValue: original.uris.first ?? "")
+        _description = State(initialValue: original.description)
+    }
+
+    private var passwordPrompt: Text { Text(editing == nil ? "Optional" : "Unchanged") }
     private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && !state.isBusy }
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "New Password")
+            ScreenHeader(title: editing == nil ? "New Password" : "Edit Password")
             Form {
                 Section {
                     TextField("Name", text: $name, prompt: Text("Required"))
@@ -22,9 +38,9 @@ struct AddView: View {
                         HStack(spacing: 2) {
                             Group {
                                 if showPassword {
-                                    TextField("", text: $password, prompt: Text("Optional")).monospaced()
+                                    TextField("", text: $password, prompt: passwordPrompt).monospaced()
                                 } else {
-                                    SecureField("", text: $password, prompt: Text("Optional"))
+                                    SecureField("", text: $password, prompt: passwordPrompt)
                                 }
                             }
                             .multilineTextAlignment(.trailing)
@@ -67,11 +83,22 @@ struct AddView: View {
     }
 
     private func save() {
+        let name = name.trimmingCharacters(in: .whitespaces)
         Task {
-            if await state.create(name: name.trimmingCharacters(in: .whitespaces), username: username,
-                                  password: password, uri: uri, description: description) {
-                password = ""
+            let saved: Bool
+            if let editing {
+                func changed<T: Equatable>(_ new: T, _ old: T) -> T? { new == old ? nil : new }
+                // The form shows the first URL; any others are kept.
+                let uris = (uri.isEmpty ? [] : [uri]) + original.uris.dropFirst()
+                saved = await state.update(editing, name: changed(name, editing.name ?? ""),
+                                           username: changed(username, original.username), password: password,
+                                           uris: changed(uris, original.uris),
+                                           description: changed(description, original.description))
+            } else {
+                saved = await state.create(name: name, username: username, password: password, uri: uri,
+                                           description: description)
             }
+            if saved { password = "" }
         }
     }
 }

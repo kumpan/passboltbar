@@ -12,6 +12,7 @@ struct ResourceField: Hashable {
     let label: String
     let value: String
     var secret = false
+    var custom = false
 }
 
 struct Credentials {
@@ -69,6 +70,33 @@ struct PassboltCLI {
         return try JSONDecoder().decode([String: String].self, from: data)["id"] ?? ""
     }
 
+    /// nil leaves a field as it is.
+    func update(id: String, name: String?, username: String?, password: String?, uris: [String]?,
+                description: String?, creds: Credentials) async throws {
+        _ = try await run(Self.updateArgs(id: id, name: name, username: username, password: password,
+                                          uris: uris, description: description), creds: creds)
+    }
+
+    static func updateArgs(id: String, name: String?, username: String?, password: String?, uris: [String]?,
+                           description: String?) -> [String] {
+        var args = ["update", "resource", "--id", id]
+        // The CLI skips empty flags, so clearing goes through --field key= (works on v5 items only).
+        // Not --field for values: it parses a value starting with [ or { as JSON.
+        for (key, value) in [("name", name), ("username", username), ("description", description)] {
+            guard let value else { continue }
+            args += value.isEmpty ? ["--field", key + "="] : ["--" + key, value]
+        }
+        if let uris {
+            // The whole list: --uri would replace all of a v5 item's URLs with one.
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .withoutEscapingSlashes
+            args += ["--field", "uris=" + String(decoding: try! encoder.encode(uris), as: UTF8.self)]
+        }
+        // Visible in `ps` while the CLI runs, as in create.
+        if let password, !password.isEmpty { args += ["--password", password] }
+        return args
+    }
+
     static func decodeList(_ data: Data) throws -> [Resource] {
         try JSONDecoder().decode([Resource].self, from: data)
     }
@@ -108,8 +136,8 @@ struct PassboltCLI {
         let r = try JSONDecoder().decode(Get.self, from: data)
 
         var out: [ResourceField] = []
-        func add(_ label: String, _ value: String?, secret: Bool = false) {
-            if let value, !value.isEmpty { out.append(ResourceField(label: label, value: value, secret: secret)) }
+        func add(_ label: String, _ value: String?, secret: Bool = false, custom: Bool = false) {
+            if let value, !value.isEmpty { out.append(ResourceField(label: label, value: value, secret: secret, custom: custom)) }
         }
         add("Username", r.username)
         add("Password", r.password, secret: true)
@@ -121,7 +149,7 @@ struct PassboltCLI {
         for f in r.metadata?.custom_fields ?? [] {
             let s = values[f.id]
             add(f.metadata_key ?? s?.secret_key ?? "Custom field", (s?.secret_value ?? f.metadata_value)?.text,
-                secret: (f.type ?? s?.type) == "password")
+                secret: (f.type ?? s?.type) == "password", custom: true)
         }
         return out
     }

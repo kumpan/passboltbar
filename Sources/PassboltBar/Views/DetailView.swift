@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// All fields of one item, fetched on demand. ↑/↓ select, ↩ copies, space reveals a secret, ← or esc goes back.
+/// All fields of one item, fetched on demand. ↑/↓ select, ↩ copies, space reveals a secret, ⌘E edits,
+/// ← or esc goes back.
 struct DetailView: View {
     @EnvironmentObject var state: AppState
     let resource: Resource
@@ -13,6 +14,9 @@ struct DetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(title: resource.name ?? "(no name)", back: back)
+                .overlay(alignment: .topTrailing) {
+                    IconButton(systemName: "pencil", help: "Edit (⌘E)", action: edit).padding([.top, .trailing], 10)
+                }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -45,10 +49,14 @@ struct DetailView: View {
         case 36, 76: if fields.indices.contains(selection) { state.copy(fields[selection]) }  // return, enter
         case 49: if fields.indices.contains(selection), fields[selection].secret { revealed.formSymmetricDifference([selection]) }  // space
         case 123, 53: back()                                                  // left, esc
+        case 14 where event.modifierFlags.contains(.command): edit()          // ⌘E
         default: return event
         }
         return nil
     }
+
+    /// Secrets and custom fields stay out of the form, and so out of AppState.
+    private func edit() { state.mode = .edit(resource, fields.filter { !$0.secret && !$0.custom }) }
 }
 
 struct FieldRow: View {

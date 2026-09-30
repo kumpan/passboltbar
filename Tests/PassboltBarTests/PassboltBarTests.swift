@@ -91,6 +91,17 @@ final class ParsingTests: XCTestCase {
         XCTAssertEqual(fields.map(\.value), ["root", "hunter2", "https://aws.amazon.com", "https://console.aws.amazon.com",
                                              "prod", "rotate yearly", "1234-5678", "AKIA-x", "8443", "true"])
         XCTAssertEqual(fields.filter(\.secret).map(\.label), ["Password", "API secret"])
+        XCTAssertEqual(fields.filter(\.custom).map(\.label), ["Account ID", "API secret", "Port", "MFA"])
+    }
+
+    func testUpdateArgs() {
+        // Unchanged fields (nil) and an empty password are left out; a cleared field is set to "".
+        XCTAssertEqual(PassboltCLI.updateArgs(id: "x", name: nil, username: "", password: "",
+                                              uris: ["https://a.com/?q=1", "https://b.com"], description: "{not json"),
+                       ["update", "resource", "--id", "x", "--field", "username=", "--description", "{not json",
+                        "--field", #"uris=["https://a.com/?q=1","https://b.com"]"#])
+        XCTAssertEqual(PassboltCLI.updateArgs(id: "x", name: "N", username: nil, password: "pw", uris: nil, description: nil),
+                       ["update", "resource", "--id", "x", "--name", "N", "--password", "pw"])
     }
 
     func testDecodeDetailsV4() throws {
