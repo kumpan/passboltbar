@@ -67,9 +67,11 @@ Login** → **+** → choose PassboltBar.
 | **↑ / ↓** | Move the selection |
 | **↩** | Copy the password (cleared from the clipboard after 30 s) |
 | **⌘↩** | Copy the username |
-| **→** or double-click | Show every field: URLs, description, note and custom fields. **↩** copies the selected one, **space** shows or hides a password, **←** goes back. Values can also be selected with the mouse |
+| **→** or double-click | Show every field: URLs, description, note and custom fields. **↩** copies the selected one, **space** shows or hides a password, **⌘E** edits, **←** goes back. Values can also be selected with the mouse |
 
 - **+** adds a new password. The wand button generates a strong one.
+- **✎** in the details view (or **⌘E**) edits the name, username, URL, password or description. Leave the
+  password empty to keep the current one. Notes and custom fields can only be edited in the browser.
 - **⚙︎** opens Settings: clipboard clear time, updates, and removing the saved passphrase or 2FA secret.
 - Touch ID is asked for at most every 5 minutes, and only when a password is needed. Opening the menu shows
   the list you last loaded; **↻** reloads it.
@@ -121,8 +123,10 @@ swift scripts/make-icon.swift preview out.png   # icon variants; `… make-icon.
   - The passphrase and TOTP secret reach the CLI only via the child environment (`USERPASSWORD`,
     `MFAMODE=noninteractive-totp`, `MFATOTPTOKEN`). The CLI's stdin is `/dev/null`, so prompts fail fast
     instead of hanging.
-  - `create` passes the new password as `--password`, because the CLI can't read it from stdin. It is
-    briefly visible in `ps`.
+  - `create` and `update` pass the new password as `--password`, because the CLI can't read it from
+    stdin. It is briefly visible in `ps`.
+  - `update` sends only changed fields. The CLI ignores empty flags, so a cleared field is sent as
+    `--field key=`, which only clears it on v5 items.
   - ⌃⌥P uses private AppKit API to open `MenuBarExtra` on macOS 27, where the button has no action.
     If that API goes away, the hotkey becomes a no-op; clicking the icon still works.
   - The updater verifies the code signature requirement (team `NH4M8452G6`, id `se.kumpan.passboltbar`)
